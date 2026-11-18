@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Carnet Bauma China</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bauma">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F2CE1B">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+/* Appli de terrain à une main, 100 % hors ligne. Charte ENGIK : Arial + jaune F2CE1B. */
+:root{
+  --bg:#F1F2EE; --surface:#FFFFFF; --sunk:#E6E8E1; --line:#D3D6CC;
+  --fg:#1C1D19; --muted:#61655A; --yellow:#F2CE1B; --on-yellow:#1C1D19;
+  --hot:#C23B22; --warm:#C98A0B; --cold:#3D6E9E; --ok:#2F7D4A; --alert:#B5470F;
+  --font:Arial,"Helvetica Neue",Helvetica,sans-serif; --r:10px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#131411; --surface:#1D1F1A; --sunk:#262822; --line:#363930;
+  --fg:#ECEDE6; --muted:#A3A798; --hot:#F0775E; --warm:#E8B23A; --cold:#7FB0E0; --ok:#6CC28A; --alert:#F08A4B; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%}
+[hidden]{display:none!important}
+img{max-width:100%}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+
+.top{position:sticky;top:0;z-index:5;background:var(--yellow);color:var(--on-yellow);
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));
+  display:flex;align-items:center;gap:12px}
+.top h1{margin:0;font-size:17px}
+.top .sub{font-size:12px;opacity:.75}
+.top .grow{flex:1;min-width:0}
+.badge{font-size:12px;font-weight:700;padding:5px 9px;border-radius:999px;background:rgba(28,29,25,.12);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.badge i{width:8px;height:8px;border-radius:50%;background:#2F7D4A;display:inline-block}
+
+main{padding:16px max(16px,env(safe-area-inset-right,0px)) calc(96px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));max-width:720px;margin:0 auto}
+.view{display:flex;flex-direction:column;gap:18px}
+h2{margin:0;font-size:20px}
+.label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.group{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1 1 140px;min-width:0}
+input[type=text],input[type=email],input[type=tel],input[type=search],textarea{
+  width:100%;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px;font-size:16px}
+textarea{min-height:84px;resize:vertical}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field span{font-size:12px;color:var(--muted)}
+
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.shot{position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;background:var(--sunk)}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.shot button{position:absolute;top:4px;right:4px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:17px;line-height:1;cursor:pointer}
+.shot .tag{position:absolute;left:4px;bottom:4px;font-size:10px;font-weight:700;background:rgba(0,0,0,.6);color:#fff;padding:2px 5px;border-radius:4px}
+.cam{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px 14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;text-align:center}
+.btn.primary{background:var(--yellow);color:var(--on-yellow);border-color:var(--yellow)}
+.btn.big{flex:1 1 150px}
+.btn.danger{color:var(--hot);border-color:var(--hot);background:transparent}
+.btn:disabled{opacity:.5}
+.link{background:none;border:0;padding:4px 0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:14px}
+input[type=file]{display:none}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 12px;font-size:14px;cursor:pointer;min-height:38px}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg);font-weight:700}
+.lvl .chip{flex:1;text-align:center;font-weight:700}
+.lvl .chip[data-v="Chaud"][aria-pressed="true"]{background:var(--hot);border-color:var(--hot);color:#fff}
+.lvl .chip[data-v="Tiède"][aria-pressed="true"]{background:var(--warm);border-color:var(--warm);color:#fff}
+.lvl .chip[data-v="Froid"][aria-pressed="true"]{background:var(--cold);border-color:var(--cold);color:#fff}
+.savebar{display:flex;gap:10px;flex-wrap:wrap}
+
+.stats{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.stats b{color:var(--fg);font-variant-numeric:tabular-nums}
+.list{display:flex;flex-direction:column;gap:8px}
+.card{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;cursor:pointer;text-align:left;width:100%}
+.card .th{width:64px;height:48px;border-radius:6px;background:var(--sunk);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px}
+.card .th img{width:100%;height:100%;object-fit:cover}
+.card .t{min-width:0}
+.card .n{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .m,.card .k{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .k{font-size:12px;color:var(--fg);margin-top:3px}
+.card .r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pill{font-size:11px;font-weight:700;padding:3px 7px;border-radius:999px;color:#fff;background:var(--muted)}
+.pill.Chaud{background:var(--hot)}.pill.Tiède{background:var(--warm)}.pill.Froid{background:var(--cold)}
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:24px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--fg);margin-bottom:6px}
+.note{font-size:13px;color:var(--muted);margin:0}
+.backup{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
+.backup.late{border-color:var(--alert)}
+.backup.late .when{color:var(--alert);font-weight:700}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);
+  display:flex;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+nav.tabs button{flex:1;border:0;background:none;padding:10px 4px;font-weight:700;font-size:14px;color:var(--muted);border-radius:8px;cursor:pointer;min-height:48px}
+nav.tabs button[aria-selected="true"]{color:var(--on-yellow);background:var(--yellow)}
+.rdv{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--hot);border-radius:var(--r);padding:10px 12px;cursor:pointer;text-align:left;width:100%}
+.rdv .h{font-weight:700;font-variant-numeric:tabular-nums;min-width:62px}
+.rdv .t{flex:1;min-width:0}
+.rdv .t b{display:block}
+.rdv .t span{font-size:13px;color:var(--muted)}
+.rdv .when{font-size:12px;font-weight:700;color:var(--hot);white-space:nowrap}
+.rdv.past{opacity:.55;border-left-color:var(--line)}
+.planbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;gap:10px}
+.planbox svg{width:100%;height:auto;display:block;touch-action:manipulation}
+.planbox .hall{fill:var(--sunk);stroke:var(--line);stroke-width:2}
+.planbox .hall.todo{fill:var(--yellow);stroke:var(--on-yellow)}
+.planbox .hall.rdvh{stroke:var(--hot);stroke-width:7}
+.planbox .hall.sel{stroke:var(--fg);stroke-width:7}
+.planbox .ground{fill:var(--bg);stroke:var(--line);stroke-width:2;stroke-dasharray:8 6}
+.planbox text{font-family:var(--font);font-weight:700;fill:var(--fg);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.planbox .hall.todo+text{fill:var(--on-yellow)}
+.planbox .me{fill:#1F6FD1;stroke:#fff;stroke-width:4}
+.planbox .acc{fill:rgba(31,111,209,.15);stroke:rgba(31,111,209,.5);stroke-width:2}
+.guide{font-size:14px;display:flex;flex-direction:column;gap:6px}
+.guide b{font-size:16px}
+.seg{display:flex;gap:6px}
+.seg .chip{flex:1;text-align:center}
+.vgroup{display:flex;flex-direction:column;gap:6px}
+.vgroup h3{margin:6px 0 0;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;justify-content:space-between}
+.vrow{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:6px 10px 6px 6px}
+.vrow.done{opacity:.55}
+.vrow.done .vn{text-decoration:line-through}
+.tick{width:40px;height:40px;border-radius:50%;border:2px solid var(--line);background:var(--bg);cursor:pointer;font-size:20px;line-height:1;color:var(--ok)}
+.vrow.done .tick{border-color:var(--ok)}
+.vbody{min-width:0;cursor:pointer;background:none;border:0;padding:4px 0;text-align:left}
+.vn{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.vo{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.vr{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pill.must{background:var(--fg);color:var(--bg)}
+.pill.rdvp{background:var(--hot)}
+input[type=datetime-local],input[type=time]{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px;font-size:16px;min-height:48px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:700;z-index:20;max-width:90vw;text-align:center}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="grow">
+    <h1>Carnet Bauma China</h1>
+    <div class="sub">SNIEC Shanghai · 24–27 nov. 2026</div>
+  </div>
+  <div class="badge" title="Cette appli n'envoie rien sur internet"><i></i><span>Hors ligne</span></div>
+</header>
+
+<main>
+  <section class="view" id="vVoir" hidden>
+    <div class="group" id="rdvBox">
+      <div class="label">Rendez-vous</div>
+      <div class="list" id="rdvList"></div>
+    </div>
+
+    <div class="planbox">
+      <div class="seg" id="siteSeg"></div>
+      <div id="planSvg"></div>
+      <div class="guide" id="guide"></div>
+      <div class="savebar">
+        <button class="btn big" id="locBtn">Me localiser</button>
+        <a class="btn big" id="mapsLink" href="https://maps.apple.com/" target="_blank" rel="noopener">Itinéraire dans Plans</a>
+      </div>
+      <p class="note">Le GPS ne consomme pas de data. Dans les halls il est imprécis (20 à 50 m) : fiez-vous au numéro de stand. Le bouton Plans, lui, utilise le réseau.</p>
+    </div>
+
+    <div class="row" style="align-items:center">
+      <div class="stats" id="vStats" style="flex:1 1 auto"></div>
+      <button class="btn primary" id="addVisite" style="flex:0 0 auto">+ Ajouter un exposant</button>
+    </div>
+    <div class="chips" id="vFilter"></div>
+    <div id="vList" class="view" style="gap:14px"></div>
+    <div class="row" style="gap:16px"><button class="link" id="impListe" style="flex:0 0 auto">Importer une liste préparée (.json)</button></div>
+    <input type="file" id="fileListe" accept=".json,application/json">
+    <p class="note">La liste reste sur le téléphone : elle n'est jamais mise en ligne.</p>
+  </section>
+
+  <section class="view" id="vVisite" hidden>
+    <div class="row" style="align-items:baseline">
+      <h2 id="visTitle">Exposant à voir</h2>
+      <button class="link" id="visCancel" style="flex:0 0 auto">Annuler</button>
+    </div>
+    <div class="row">
+      <label class="field"><span>Société</span><input type="text" id="v_societe" autocomplete="off"></label>
+      <label class="field"><span>Marques</span><input type="text" id="v_marques" autocomplete="off"></label>
+    </div>
+    <label class="field"><span>Ce que je veux voir</span><input type="text" id="v_objet" placeholder="Pelles 20 t, prix pièces, distribution Afrique…" autocomplete="off"></label>
+    <div class="group"><div class="label">Site</div><div class="chips seg" id="v_site"></div></div>
+    <div class="row">
+      <label class="field"><span>Stand</span><input type="text" id="v_stand" placeholder="E3.512" autocomplete="off"></label>
+      <label class="field"><span>Hall</span><input type="text" id="v_hall" placeholder="E3" autocomplete="off"></label>
+    </div>
+    <div class="group"><div class="label">Priorité</div><div class="chips seg" id="v_prio"></div></div>
+    <div class="row">
+      <label class="field"><span>Rendez-vous (facultatif)</span><input type="datetime-local" id="v_rdv"></label>
+      <label class="field"><span>Fin</span><input type="time" id="v_rdvFin"></label>
+    </div>
+    <label class="field"><span class="label">Notes</span><textarea id="v_notes"></textarea></label>
+    <div class="savebar"><button class="btn primary big" id="visSave">Enregistrer</button></div>
+    <div class="savebar" id="visMeetBar"><button class="btn big" id="visMeet">Rencontré : créer la fiche</button></div>
+    <div class="savebar" id="visDelBar">
+      <button class="btn danger" id="visDel">Retirer de la liste</button>
+      <button class="btn danger" id="visDelOk" hidden>Confirmer</button>
+    </div>
+  </section>
+
+  <section class="view" id="vNew">
+    <div class="row" style="align-items:baseline">
+      <h2 id="formTitle">Nouvelle fiche</h2>
+      <button class="link" id="cancelEdit" hidden style="flex:0 0 auto">Annuler</button>
+    </div>
+
+    <div class="group">
+      <div class="label">Photos</div>
+      <div class="cam">
+        <button class="btn primary big" data-shoot="carte" data-cap="1">Carte de visite</button>
+        <button class="btn primary big" data-shoot="stand" data-cap="1">Stand / machine</button>
+      </div>
+      <div class="row" style="gap:16px">
+        <button class="link" data-shoot="carte" style="flex:0 0 auto">Carte depuis la galerie</button>
+        <button class="link" data-shoot="stand" style="flex:0 0 auto">Stand depuis la galerie</button>
+      </div>
+      <input type="file" id="fileCam" accept="image/*" capture="environment">
+      <input type="file" id="fileLib" accept="image/*" multiple>
+      <div class="shots" id="shots"></div>
+    </div>
+
+    <div class="group">
+      <div class="label">Exposant</div>
+      <div class="row">
+        <label class="field"><span>Société</span><input type="text" id="f_societe" autocomplete="off"></label>
+        <label class="field"><span>Nom chinois</span><input type="text" id="f_societe_cn" autocomplete="off"></label>
+      </div>
+      <div class="row">
+        <label class="field"><span>Hall</span><input type="text" id="f_hall" placeholder="E3" autocomplete="off"></label>
+        <label class="field"><span>Stand</span><input type="text" id="f_stand" placeholder="E3.512" autocomplete="off"></label>
+      </div>
+      <label class="field"><span>Marques</span><input type="text" id="f_marques" placeholder="SANY, XCMG, Liugong…" autocomplete="off"></label>
+      <div class="row">
+        <label class="field"><span>Pays</span><input type="text" id="f_pays" autocomplete="off"></label>
+        <label class="field"><span>Ville</span><input type="text" id="f_ville" autocomplete="off"></label>
+      </div>
+    </div>
+
+    <div class="group"><div class="label">Activité</div><div class="chips" id="c_activites"></div></div>
+    <div class="group"><div class="label">Types de machines</div><div class="chips" id="c_machines"></div></div>
+
+    <div class="group">
+      <div class="label">Contact</div>
+      <div class="row">
+        <label class="field"><span>Nom</span><input type="text" id="f_contact" autocomplete="off"></label>
+        <label class="field"><span>Fonction</span><input type="text" id="f_fonction" autocomplete="off"></label>
+      </div>
+      <div class="row">
+        <label class="field"><span>Email</span><input type="email" id="f_email" autocomplete="off"></label>
+        <label class="field"><span>Téléphone</span><input type="tel" id="f_tel" autocomplete="off"></label>
+      </div>
+      <div class="row">
+        <label class="field"><span>WeChat</span><input type="text" id="f_wechat" autocomplete="off"></label>
+        <label class="field"><span>Site web</span><input type="text" id="f_site" autocomplete="off"></label>
+      </div>
+    </div>
+
+    <div class="group"><div class="label">Intérêt pour ENGIK</div><div class="chips lvl" id="c_interet"></div></div>
+    <div class="group"><div class="label">Suite à donner</div><div class="chips" id="c_suites"></div></div>
+    <label class="field"><span class="label">Notes</span><textarea id="f_notes" placeholder="Prix vus, délais, ce qu'on s'est dit…"></textarea></label>
+
+    <p class="note">Pas besoin de tout remplir : la photo de la carte suffit, les coordonnées seront lues au retour.</p>
+    <div class="savebar"><button class="btn primary big" id="saveBtn">Enregistrer la fiche</button></div>
+    <div class="savebar" id="delBar" hidden>
+      <button class="btn danger" id="delBtn">Supprimer cette fiche</button>
+      <button class="btn danger" id="delConfirm" hidden>Confirmer la suppression</button>
+    </div>
+  </section>
+
+  <section class="view" id="vContacts" hidden>
+    <div class="backup" id="backup">
+      <div><span class="label">Sauvegarde</span> · <span class="when" id="lastExport">jamais faite</span></div>
+      <p class="note">Les fiches ne sont que sur ce téléphone. Chaque soir, enregistrez l'export dans Fichiers (iPhone) : ça ne consomme pas de data.</p>
+      <div class="savebar">
+        <button class="btn primary big" id="prepBtn">Préparer l'export</button>
+        <button class="btn primary big" id="shareBtn" hidden>Enregistrer / envoyer</button>
+      </div>
+      <p class="note" id="prepNote" hidden></p>
+    </div>
+    <input type="search" id="q" placeholder="Chercher société, marque, machine…">
+    <div class="chips" id="fInteret"></div>
+    <div class="stats" id="stats"></div>
+    <div class="list" id="list"></div>
+    <p class="note" id="storage"></p>
+  </section>
+</main>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tVoir" aria-selected="false">À voir</button>
+  <button role="tab" id="tNew" aria-selected="true">Saisir</button>
+  <button role="tab" id="tList" aria-selected="false">Contacts <span id="count"></span></button>
+</nav>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const ACTIVITES=["Fabricant (OEM)","Distributeur / concession","Pièces détachées","Composants (hydraulique, moteurs…)","Usure / GET","Pneumatiques","Accessoires / outils","Télématique / logiciel","Loueur","Réparation / service","Transport / logistique","Autre"];
+const MACHINES=["Pelles hydrauliques","Mini-pelles","Chargeuses","Bulldozers","Niveleuses","Compacteurs","Tombereaux / dumpers","Engins miniers","Grues mobiles","Grues à tour","Nacelles","Chariots / télescopiques","Concasseurs / cribles","Forage","Centrales à béton","Pompes à béton","Finisseurs / routes","Camions / malaxeurs","Groupes électrogènes","Compresseurs","Éclairage de chantier","Autre"];
+const INTERETS=["Chaud","Tiède","Froid"];
+const SUITES=["Envoyer documentation","Demander un prix","Proposer une distribution","Recontacter","Visite usine","Rien"];
+const TEXT=["societe","societe_cn","hall","stand","marques","pays","ville","contact","fonction","email","tel","wechat","site","notes"];
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let fiches=new Map(),shootKind="carte",fInteret="",pending=null;
+let form;
+
+/* ---------- stockage sur le téléphone ---------- */
+let idbP=null;
+function idbOpen(){if(!idbP)idbP=new Promise((res,rej)=>{const r=indexedDB.open("carnet-bauma",2);
+  r.onupgradeneeded=()=>{const d=r.result;for(const s of ["fiches","visites"])if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:"id"})};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});return idbP}
+async function idb(mode,fn,store="fiches"){const d=await idbOpen();return new Promise((res,rej)=>{const t=d.transaction(store,mode);const q=fn(t.objectStore(store));
+  t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+
+function records(){const out=[...fiches.values()].sort((a,b)=>a.createdAt.localeCompare(b.createdAt));out.forEach((r,i)=>r.num=i+1);return out}
+const urls=new WeakMap();
+const photoUrl=p=>{if(!urls.has(p.blob))urls.set(p.blob,URL.createObjectURL(p.blob));return urls.get(p.blob)};
+
+/* ---------- photos ---------- */
+async function shrink(file){
+  let src;try{src=await createImageBitmap(file,{imageOrientation:"from-image"})}catch(e){
+    src=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=URL.createObjectURL(file)})}
+  const w=src.width,h=src.height,k=Math.min(1,1800/Math.max(w,h));
+  const c=document.createElement("canvas");c.width=Math.round(w*k);c.height=Math.round(h*k);
+  c.getContext("2d").drawImage(src,0,0,c.width,c.height);
+  return new Promise(res=>c.toBlob(b=>res(b||file),"image/jpeg",0.82))}
+document.querySelectorAll("[data-shoot]").forEach(b=>b.onclick=()=>{shootKind=b.dataset.shoot;(b.dataset.cap?$("#fileCam"):$("#fileLib")).click()});
+for(const inp of [$("#fileCam"),$("#fileLib")])inp.onchange=async()=>{
+  const files=[...inp.files];inp.value="";
+  for(const f of files){try{form.photos.push({kind:shootKind,blob:await shrink(f)})}catch(e){toast("Photo illisible, réessayez")}}
+  renderShots()};
+function renderShots(){const el=$("#shots");el.innerHTML="";
+  form.photos.forEach((p,i)=>{const d=document.createElement("div");d.className="shot";
+    d.innerHTML=`<img alt="" src="${photoUrl(p)}"><span class="tag">${p.kind==="carte"?"Carte":"Stand"}</span><button aria-label="Retirer la photo">×</button>`;
+    d.querySelector("button").onclick=()=>{form.photos.splice(i,1);renderShots()};el.append(d)})}
+
+/* ---------- puces ---------- */
+function chips(el,list,key,single){el.innerHTML="";
+  for(const v of list){const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=v;b.dataset.v=v;
+    b.setAttribute("aria-pressed",form.sel[key].has(v));
+    b.onclick=()=>{const s=form.sel[key];if(s.has(v))s.delete(v);else{if(single)s.clear();s.add(v)}renderChips()};el.append(b)}}
+function renderChips(){chips($("#c_activites"),ACTIVITES,"activites");chips($("#c_machines"),MACHINES,"machines");
+  chips($("#c_interet"),INTERETS,"interet",true);chips($("#c_suites"),SUITES,"suites")}
+
+/* ---------- formulaire ---------- */
+function resetForm(){form={id:null,visiteId:null,photos:[],sel:{activites:new Set(),machines:new Set(),interet:new Set(),suites:new Set()}};
+  for(const k of TEXT)$("#f_"+k).value="";$("#formTitle").textContent="Nouvelle fiche";
+  $("#cancelEdit").hidden=true;$("#delBar").hidden=true;$("#delConfirm").hidden=true;renderChips();renderShots()}
+function openRecord(r){
+  form={id:r.id,photos:r.photos.map(p=>({...p})),sel:{activites:new Set(r.activites),machines:new Set(r.machines),interet:new Set(r.interet?[r.interet]:[]),suites:new Set(r.suites)}};
+  for(const k of TEXT)$("#f_"+k).value=r[k]||"";
+  $("#formTitle").textContent=`Fiche n° ${r.num}`;$("#cancelEdit").hidden=false;$("#delBar").hidden=false;$("#delConfirm").hidden=true;
+  renderChips();renderShots();show("new")}
+$("#cancelEdit").onclick=()=>{const back=form.visiteId?"voir":"list";resetForm();if(back==="voir")renderVoir();else render();show(back)};
+$("#saveBtn").onclick=async()=>{
+  const f={};for(const k of TEXT)f[k]=$("#f_"+k).value.trim();
+  if(!f.societe&&!f.contact&&!form.photos.length){toast("Ajoutez au moins une photo ou un nom");return}
+  const prev=form.id&&fiches.get(form.id),now=new Date().toISOString();
+  const id=form.id||"f"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const rec={...f,id,activites:[...form.sel.activites],machines:[...form.sel.machines],interet:[...form.sel.interet][0]||"",suites:[...form.sel.suites],
+    createdAt:prev?prev.createdAt:now,updatedAt:now,photos:form.photos.map(p=>({kind:p.kind,blob:p.blob}))};
+  try{await idb("readwrite",s=>s.put(rec))}catch(e){toast("Enregistrement impossible : mémoire du téléphone pleine ?");return}
+  fiches.set(id,rec);
+  const v=form.visiteId&&visites.get(form.visiteId);if(v)await putVisite({...v,vu:true,ficheId:id});
+  const wasEdit=!!form.id;resetForm();render();
+  toast(wasEdit?"Fiche mise à jour":`Fiche n° ${records().find(r=>r.id===id).num} enregistrée`);if(wasEdit)show("list")};
+$("#delBtn").onclick=()=>{$("#delConfirm").hidden=false};
+$("#delConfirm").onclick=async()=>{const id=form.id;if(!id)return;
+  try{await idb("readwrite",s=>s.delete(id))}catch(e){toast("Suppression impossible");return}
+  fiches.delete(id);resetForm();render();show("list");toast("Fiche supprimée")};
+
+/* ---------- liste ---------- */
+function render(){
+  const all=records();$("#count").textContent=all.length?`(${all.length})`:"";
+  const fi=$("#fInteret");fi.innerHTML="";
+  for(const v of ["",...INTERETS]){const b=document.createElement("button");b.className="chip";b.textContent=v||"Tous";b.setAttribute("aria-pressed",fInteret===v);b.onclick=()=>{fInteret=v;render()};fi.append(b)}
+  const q=$("#q").value.trim().toLowerCase();
+  const rows=all.filter(r=>(!fInteret||r.interet===fInteret)&&(!q||[...TEXT.map(k=>r[k]),...r.activites,...r.machines].join(" ").toLowerCase().includes(q))).reverse();
+  const hot=all.filter(r=>r.interet==="Chaud").length,cards=all.filter(r=>r.photos.some(p=>p.kind==="carte")).length;
+  $("#stats").innerHTML=`<span><b>${all.length}</b> fiches</span><span><b>${cards}</b> avec carte</span><span><b>${hot}</b> chaudes</span>`;
+  const L=$("#list");L.innerHTML="";
+  if(!all.length)L.innerHTML=`<div class="empty"><b>Aucun exposant pour l'instant</b>Prenez la carte de visite en photo depuis l'onglet Saisir : chaque fiche enregistrée apparaît ici.</div>`;
+  else if(!rows.length)L.innerHTML=`<div class="empty">Aucune fiche ne correspond.</div>`;
+  for(const r of rows){const ph=r.photos.find(p=>p.kind==="carte")||r.photos[0];
+    const b=document.createElement("button");b.className="card";
+    b.innerHTML=`<div class="th">${ph?`<img alt="" loading="lazy" src="${photoUrl(ph)}">`:"sans photo"}</div>
+      <div class="t"><div class="n">${esc(r.societe||r.societe_cn||r.contact||"Carte à lire")}</div>
+      <div class="m">${esc([r.contact,r.fonction].filter(Boolean).join(" · ")||r.marques||"—")}</div>
+      <div class="k">${esc(r.machines.slice(0,3).join(", "))}</div></div>
+      <div class="r"><span>n° ${r.num}</span>${r.interet?`<span class="pill ${esc(r.interet)}">${esc(r.interet)}</span>`:""}${r.stand||r.hall?`<span>${esc(r.stand||r.hall)}</span>`:""}</div>`;
+    b.onclick=()=>openRecord(r);L.append(b)}
+  renderBackup()}
+$("#q").oninput=render;
+function renderBackup(){
+  const last=ls.get("lastExport"),lastN=+ls.get("lastExportCount")||0,n=fiches.size;
+  let txt="jamais faite";
+  if(last){const d=new Date(last);txt=`${d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})} à ${d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} · ${lastN} fiches`}
+  $("#lastExport").textContent=txt;
+  $("#backup").classList.toggle("late",n>0&&(n>lastN||!last))}
+
+/* ---------- export : zip et xlsx écrits ici, sans bibliothèque ni réseau ---------- */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(u){let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
+async function makeZip(files,type){
+  const enc=new TextEncoder(),parts=[],central=[],d=new Date();let off=0;
+  const dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate(),tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+  for(const f of files){
+    const data=typeof f.data==="string"?enc.encode(f.data):f.data instanceof Blob?new Uint8Array(await f.data.arrayBuffer()):f.data;
+    const name=enc.encode(f.name),crc=crc32(data);
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(10,tm,true);h.setUint16(12,dt,true);
+    h.setUint32(14,crc,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);h.setUint16(26,name.length,true);
+    parts.push(h.buffer,name,data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(12,tm,true);c.setUint16(14,dt,true);
+    c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);c.setUint16(28,name.length,true);c.setUint32(42,off,true);
+    central.push(c.buffer,name);off+=30+name.length+data.length}
+  const size=central.reduce((s,b)=>s+b.byteLength,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,size,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...central,e.buffer],{type})}
+const x=s=>String(s??"").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=(i-m-1)/26}return s};
+async function makeXlsx(head,rows,widths){
+  const cell=(v,r,c,st)=>typeof v==="number"?`<c r="${col(c)}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${col(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
+  const all=[head,...rows],last=`${col(head.length-1)}${all.length}`;
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${all.map((r,ri)=>`<row r="${ri+1}">${r.map((v,ci)=>cell(v,ri+1,ci,ri?2:1)).join("")}</row>`).join("")}</sheetData><autoFilter ref="A1:${last}"/></worksheet>`;
+  const ns="http://schemas.openxmlformats.org";
+  return makeZip([
+    {name:"[Content_Types].xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="${ns}/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`},
+    {name:"_rels/.rels",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${ns}/package/2006/relationships"><Relationship Id="rId1" Type="${ns}/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="${ns}/spreadsheetml/2006/main" xmlns:r="${ns}/officeDocument/2006/relationships"><sheets><sheet name="Exposants" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Exposants!$A$1:$${last.replace(/(\d+)$/,"$$$1")}</definedName></definedNames></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${ns}/package/2006/relationships"><Relationship Id="rId1" Type="${ns}/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${ns}/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="${ns}/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2CE1B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    {name:"xl/worksheets/sheet1.xml",data:sheet}],"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+const slug=s=>String(s||"exposant").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"exposant";
+const COLS=[["N°",5],["Date",11],["Heure",7],["Société",26],["Nom chinois",16],["Hall",6],["Stand",9],["Marques",24],["Activités",26],["Types de machines",30],["Contact",20],["Fonction",18],["Email",26],["Téléphone",18],["WeChat",14],["Site web",22],["Pays",10],["Ville",10],["Intérêt",8],["Suite à donner",24],["Notes",40],["Photos carte",34],["Photos stand",34],["Traité le",11],["Par",10]];
+async function buildExport(){
+  const all=records(),files=[],json=[],rows=[];
+  for(const r of all){const num=String(r.num).padStart(3,"0"),names={carte:[],stand:[]};
+    for(const k of ["carte","stand"])r.photos.filter(p=>p.kind===k).forEach((p,i)=>{const n=`photos/${num}_${slug(r.societe)}_${k}_${i+1}.jpg`;names[k].push(n);files.push({name:n,data:p.blob})});
+    const d=new Date(r.createdAt);
+    rows.push([r.num,d.toLocaleDateString("fr-FR"),d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),r.societe,r.societe_cn,r.hall,r.stand,r.marques,
+      r.activites.join(", "),r.machines.join(", "),r.contact,r.fonction,r.email,r.tel,r.wechat,r.site,r.pays,r.ville,r.interet,r.suites.join(", "),r.notes,
+      names.carte.join("\n"),names.stand.join("\n"),"",""]);
+    const {photos,num:_n,...rest}=r;json.push({num:r.num,...rest,photos:[...names.carte.map(f=>({kind:"carte",file:f})),...names.stand.map(f=>({kind:"stand",file:f}))]})}
+  const xlsx=await makeXlsx(COLS.map(c=>c[0]),rows,COLS.map(c=>c[1]));
+  const vis=[...visites.values()].sort(byParcours(null));
+  const numOf=id=>(all.find(r=>r.id===id)||{}).num||"";
+  const vxlsx=await makeXlsx(["Vu","Société","Marques","Ce que je veux voir","Priorité","Site","Hall","Stand","Rendez-vous","Fiche n°","Notes"],
+    vis.map(v=>[v.vu?"oui":"",v.societe,v.marques,v.objet,v.priorite,siteOf(v),hallKey(v),v.stand,v.rdv?fmtRdv(v):"",numOf(v.ficheId),v.notes]),[5,24,20,32,13,8,6,9,22,8,40]);
+  files.unshift({name:"A-voir.xlsx",data:vxlsx});
+  const stamp=new Date().toISOString().slice(0,16).replace("T","_").replace(":","h");
+  const zip=await makeZip([{name:"Exposants.xlsx",data:xlsx},{name:"fiches.json",data:JSON.stringify({salon:"Bauma China 2026",export:new Date().toISOString(),fiches:json,visites:vis},null,1)},...files],"application/zip");
+  return {file:new File([zip],`Bauma-China-2026_${stamp}.zip`,{type:"application/zip"}),count:all.length,photos:files.filter(f=>f.name.startsWith("photos/")).length}}
+$("#prepBtn").onclick=async()=>{
+  if(!fiches.size&&!visites.size)return toast("Aucune fiche à exporter");
+  const b=$("#prepBtn");b.disabled=true;b.textContent="Préparation…";
+  try{pending=await buildExport();$("#prepNote").textContent=`${pending.count} fiches, ${pending.photos} photos, ${(pending.file.size/1048576).toFixed(1)} Mo. Choisissez « Enregistrer dans Fichiers ».`;
+    $("#prepNote").hidden=false;$("#shareBtn").hidden=false;b.hidden=true}
+  catch(e){toast("Export impossible : "+(e.message||e))}finally{b.disabled=false;b.textContent="Préparer l'export"}};
+$("#shareBtn").onclick=async()=>{if(!pending)return;const {file,count}=pending;let ok=false;
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});ok=true}
+    else{const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=file.name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},60000);ok=true}}
+  catch(e){if(e.name!=="AbortError")toast("Partage impossible : "+e.message)}
+  if(ok){ls.set("lastExport",new Date().toISOString());ls.set("lastExportCount",count);pending=null;$("#shareBtn").hidden=true;$("#prepNote").hidden=true;$("#prepBtn").hidden=false;renderBackup();toast("Export fait")}};
+
+/* ---------- exposants à voir ---------- */
+// Emprises des halls : OpenStreetMap (WGS84, comme le GPS du téléphone).
+const GEO={"SNIEC":[[31.20674,121.56037],[31.20735,121.56224],[31.20984,121.56714],[31.2102,121.5675],[31.21066,121.56785],[31.21243,121.56878],[31.21289,121.56894],[31.21331,121.56903],[31.21371,121.56908],[31.21413,121.56909],[31.21466,121.56905],[31.21682,121.56856],[31.21701,121.56834],[31.21712,121.56806],[31.21713,121.56781],[31.21695,121.56663],[31.21597,121.56038],[31.21561,121.55809],[31.21556,121.55786],[31.21544,121.55772],[31.21528,121.55769],[31.21345,121.55808],[31.21127,121.55866],[31.20825,121.55965],[31.20812,121.5597]],"E1":[[31.20902,121.56433],[31.20851,121.56393],[31.20948,121.56226],[31.20999,121.56267]],"E2":[[31.21025,121.56287],[31.21076,121.56328],[31.20978,121.56494],[31.20927,121.56453]],"E3":[[31.21056,121.56556],[31.21154,121.5639],[31.21103,121.5635],[31.21006,121.56516]],"E4":[[31.21133,121.56617],[31.21231,121.56452],[31.2118,121.56411],[31.21083,121.56577]],"E5":[[31.21258,121.56473],[31.2116,121.56638],[31.21211,121.56679],[31.21308,121.56514]],"E6":[[31.21288,121.56741],[31.21386,121.56575],[31.21335,121.56534],[31.21237,121.567]],"E7":[[31.21412,121.56596],[31.21315,121.56762],[31.21366,121.56802],[31.21463,121.56636]],"N1":[[31.21592,121.56152],[31.21412,121.56192],[31.21399,121.56124],[31.21579,121.56084]],"N2":[[31.21609,121.56259],[31.21429,121.56299],[31.21418,121.56229],[31.21598,121.56188]],"N3":[[31.21627,121.56367],[31.21447,121.56407],[31.21435,121.56335],[31.21615,121.56295]],"N4":[[31.21644,121.56474],[31.21464,121.56514],[31.21453,121.56443],[31.21633,121.56403]],"N5":[[31.2166,121.56584],[31.2148,121.56624],[31.2147,121.56549],[31.2165,121.56509]],"W1":[[31.20913,121.56011],[31.20974,121.55997],[31.21006,121.56194],[31.20945,121.56208]],"W2":[[31.21005,121.5599],[31.21066,121.55977],[31.21098,121.56174],[31.21038,121.56187]],"W3":[[31.2113,121.56167],[31.21098,121.55969],[31.21158,121.55956],[31.2119,121.56153]],"W4":[[31.2119,121.55949],[31.21249,121.55936],[31.21282,121.56133],[31.21222,121.56146]],"W5":[[31.21283,121.55928],[31.21343,121.55915],[31.21374,121.56099],[31.21314,121.56113]],"SWEECC":[[31.18523,121.48378],[31.18572,121.48676],[31.18376,121.48718],[31.1833,121.4842]]};
+const HALLS=Object.keys(GEO).filter(k=>/^[EWN]\d$/.test(k)).sort();
+const SITES={SNIEC:{nom:"SNIEC",long:"SNIEC · Pudong",q:"上海新国际博览中心"},SWEECC:{nom:"World Expo",long:"World Expo (SWEECC)",q:"上海世博展览馆"}};
+const PRIOS=["Indispensable","Si possible"];
+let visites=new Map(),planSite="SNIEC",pos=null,gpsWatch=null,vFilt="todo",selHall="",vform=null;
+
+const hallKey=v=>{const h=String(v.hall||"").toUpperCase().trim();if(HALLS.includes(h))return h;
+  const m=String(v.stand||"").toUpperCase().match(/^\s*([EWN][1-7])(?![0-9])/);return m?m[1]:h};
+const siteOf=v=>v.site||(HALLS.includes(hallKey(v))?"SNIEC":"");
+const centre=k=>{const p=GEO[k];return[p.reduce((s,q)=>s+q[0],0)/p.length,p.reduce((s,q)=>s+q[1],0)/p.length]};
+function dist(a,b){const k=Math.PI/180,x=(b[1]-a[1])*k*Math.cos((a[0]+b[0])/2*k),y=(b[0]-a[0])*k;return Math.hypot(x,y)*6371000}
+function cap(a,b){const k=Math.PI/180,x=(b[1]-a[1])*Math.cos((a[0]+b[0])/2*k),y=b[0]-a[0],deg=(Math.atan2(x,y)/k+360)%360;
+  return["le nord","le nord-est","l'est","le sud-est","le sud","le sud-ouest","l'ouest","le nord-ouest"][Math.round(deg/45)%8]}
+function inside(pt,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const[a,b]=poly[i],[d,e]=poly[j];
+  if((b>pt[1])!==(e>pt[1])&&pt[0]<(d-a)*(pt[1]-b)/(e-b)+a)c=!c}return c}
+const fmtM=m=>m<1000?`${Math.max(10,Math.round(m/10)*10)} m`:`${(m/1000).toFixed(1).replace(".",",")} km`;
+const rdvDate=v=>v.rdv?new Date(v.rdv):null;
+function rdvEnd(v){const d=rdvDate(v);if(!d)return null;if(/^\d\d:\d\d$/.test(v.rdvFin||"")){const[h,m]=v.rdvFin.split(":").map(Number),e=new Date(d);e.setHours(h,m,0,0);return e}return new Date(d.getTime()+3600000)}
+const hm=d=>d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+const fmtRdv=v=>{const d=rdvDate(v);return`${d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})} ${hm(d)}${v.rdvFin?"–"+v.rdvFin:""}`};
+function rel(v){const s=rdvDate(v),e=rdvEnd(v),now=Date.now();if(e<now)return"passé";if(s<=now)return"en cours";
+  const m=Math.round((s-now)/60000);if(m<60)return`dans ${m} min`;if(m<12*60)return`dans ${Math.floor(m/60)} h ${String(m%60).padStart(2,"0")}`;return""}
+
+async function putVisite(v){v={...v,updatedAt:new Date().toISOString()};
+  try{await idb("readwrite",s=>s.put(v),"visites")}catch(e){toast("Enregistrement impossible");return false}visites.set(v.id,v);return true}
+async function loadVisites(){
+  try{for(const v of (await idb("readonly",s=>s.getAll(),"visites"))||[])visites.set(v.id,v)}catch(e){}
+  try{await mergeListe(await(await fetch("visites.json")).json())}catch(e){}}
+// Une liste préparée (visites.json de l'appli ou fichier importé) n'écrase jamais ce qui a été modifié sur le téléphone.
+async function mergeListe(data){
+  let gone={},n=0;try{gone=JSON.parse(ls.get("seedGone")||"{}")}catch(e){}
+  for(const s of (data&&data.visites)||[]){if(!s.id||!s.societe||gone[s.id])continue;const cur=visites.get(s.id);
+    if(!cur){await putVisite({...s,vu:false,edited:false});n++}
+    else if(!cur.edited&&(cur.rev||0)<(s.rev||0)){await putVisite({...s,vu:cur.vu,ficheId:cur.ficheId,edited:false});n++}}
+  return n}
+$("#impListe").onclick=()=>$("#fileListe").click();
+$("#fileListe").onchange=async()=>{const f=$("#fileListe").files[0];$("#fileListe").value="";if(!f)return;
+  try{const n=await mergeListe(JSON.parse(await f.text()));renderVoir();toast(n?`${n} exposants ajoutés ou mis à jour`:"Rien de nouveau dans cette liste")}
+  catch(e){toast("Fichier illisible : choisissez la liste .json préparée")}};
+
+// Ordre de passage : depuis la position (ou E1), toujours le hall à faire le plus proche.
+function hallOrder(){
+  const todo=new Set([...visites.values()].filter(v=>!v.vu&&siteOf(v)==="SNIEC").map(hallKey).filter(h=>HALLS.includes(h)));
+  const out=[];let cur=pos&&dist([pos.lat,pos.lon],centre("SNIEC"))<1500?[pos.lat,pos.lon]:centre("E1");
+  while(todo.size){let best,bd=Infinity;for(const h of todo){const d=dist(cur,centre(h));if(d<bd){bd=d;best=h}}out.push(best);todo.delete(best);cur=centre(best)}
+  return[...out,...HALLS.filter(h=>!out.includes(h))]}
+function byParcours(order){const o=order||HALLS,sr={SNIEC:0,SWEECC:1,"":2};
+  return(a,b)=>(sr[siteOf(a)]??2)-(sr[siteOf(b)]??2)||((o.indexOf(hallKey(a))+1||99)-(o.indexOf(hallKey(b))+1||99))
+    ||(PRIOS.indexOf(a.priorite)-PRIOS.indexOf(b.priorite))||String(a.stand||"").localeCompare(String(b.stand||""),"fr",{numeric:true})}
+
+function renderVoir(){renderRdv();renderPlan();renderVList()}
+function renderRdv(){
+  const r=[...visites.values()].filter(v=>v.rdv).sort((a,b)=>rdvDate(a)-rdvDate(b));
+  $("#rdvBox").hidden=!r.length;const L=$("#rdvList");L.innerHTML="";
+  for(const v of r){const b=document.createElement("button"),past=rdvEnd(v)<Date.now(),where=[siteOf(v)&&SITES[siteOf(v)].nom,v.stand||hallKey(v)].filter(Boolean).join(" · ");
+    b.className="rdv"+(past||v.vu?" past":"");
+    b.innerHTML=`<div class="h">${esc(hm(rdvDate(v)))}<br><span style="font-weight:400;font-size:12px;color:var(--muted)">${esc(rdvDate(v).toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}))}</span></div>
+      <div class="t"><b>${esc(v.societe)}</b><span>${esc(where||"Lieu à compléter")}${v.rdvFin?" · fin "+esc(v.rdvFin):""}</span></div><div class="when">${esc(v.vu?"vu":rel(v))}</div>`;
+    b.onclick=()=>openVisite(v);L.append(b)}}
+
+function renderPlan(){
+  if(pos){const dS=dist([pos.lat,pos.lon],centre("SNIEC")),dW=dist([pos.lat,pos.lon],centre("SWEECC"));
+    if(Math.min(dS,dW)<1500)planSite=dS<dW?"SNIEC":"SWEECC"}
+  const seg=$("#siteSeg");seg.innerHTML="";
+  for(const s of ["SNIEC","SWEECC"]){const b=document.createElement("button");b.className="chip";b.textContent=SITES[s].long;b.setAttribute("aria-pressed",planSite===s);
+    b.onclick=()=>{planSite=s;selHall="";renderVoir()};seg.append(b)}
+  const keys=planSite==="SNIEC"?["SNIEC",...HALLS]:["SWEECC"],pts=keys.flatMap(k=>GEO[k]);
+  const lat0=pts.reduce((s,p)=>s+p[0],0)/pts.length,lon0=pts.reduce((s,p)=>s+p[1],0)/pts.length,cx=Math.cos(lat0*Math.PI/180)*111320;
+  const P=([la,lo])=>[(lo-lon0)*cx,-(la-lat0)*110540];
+  let me=null;if(pos&&dist([pos.lat,pos.lon],[lat0,lon0])<1500)me=P([pos.lat,pos.lon]);
+  const xy=pts.map(P).concat(me?[me]:[]),pad=planSite==="SNIEC"?60:120;
+  const x0=Math.min(...xy.map(p=>p[0]))-pad,y0=Math.min(...xy.map(p=>p[1]))-pad,w=Math.max(...xy.map(p=>p[0]))+pad-x0,h=Math.max(...xy.map(p=>p[1]))+pad-y0;
+  const open=[...visites.values()].filter(v=>!v.vu&&siteOf(v)===planSite),cnt={};for(const v of open){const k=planSite==="SNIEC"?hallKey(v):"SWEECC";cnt[k]=(cnt[k]||0)+1}
+  const now=Date.now(),rdvH=new Set([...visites.values()].filter(v=>v.rdv&&!v.vu&&rdvEnd(v)>now&&rdvDate(v)-now<3*3600000).map(v=>planSite==="SNIEC"?hallKey(v):"SWEECC"));
+  const poly=k=>GEO[k].map(P).map(p=>p.map(n=>n.toFixed(1)).join(",")).join(" ");
+  const fs=Math.max(w,h)/28;
+  let s=`<svg viewBox="${x0.toFixed(0)} ${y0.toFixed(0)} ${w.toFixed(0)} ${h.toFixed(0)}" role="img" aria-label="Plan ${esc(SITES[planSite].long)}">`;
+  if(planSite==="SNIEC")s+=`<polygon class="ground" points="${poly("SNIEC")}"/>`;
+  for(const k of keys.filter(k=>k!=="SNIEC")){const c=P(centre(k)),n=cnt[k]||0;
+    s+=`<polygon class="hall${n?" todo":""}${rdvH.has(k)?" rdvh":""}${selHall===k?" sel":""}" data-h="${k}" points="${poly(k)}"/>`;
+    s+=`<text x="${c[0].toFixed(0)}" y="${(c[1]-(n?fs*.45:0)).toFixed(0)}" font-size="${(fs*(k==="SWEECC"?1.4:1)).toFixed(0)}">${k==="SWEECC"?"World Expo":k}</text>`;
+    if(n)s+=`<text x="${c[0].toFixed(0)}" y="${(c[1]+fs*.6).toFixed(0)}" font-size="${(fs*.75).toFixed(0)}">${n} à voir</text>`}
+  s+=`<text x="${(x0+fs).toFixed(0)}" y="${(y0+fs).toFixed(0)}" font-size="${fs.toFixed(0)}">N ↑</text>`;
+  if(me)s+=`<circle class="acc" cx="${me[0].toFixed(0)}" cy="${me[1].toFixed(0)}" r="${Math.min(pos.acc,400).toFixed(0)}"/><circle class="me" cx="${me[0].toFixed(0)}" cy="${me[1].toFixed(0)}" r="${(fs*.35).toFixed(0)}"/>`;
+  $("#planSvg").innerHTML=s+"</svg>";
+  $("#planSvg svg").onclick=e=>{const h=e.target.closest("[data-h]");if(!h||h.dataset.h==="SWEECC")return;selHall=selHall===h.dataset.h?"":h.dataset.h;renderVoir()};
+  $("#mapsLink").href=`https://maps.apple.com/?daddr=${encodeURIComponent(SITES[planSite].q)}`;
+  renderGuide(open)}
+function renderGuide(open){
+  const g=$("#guide"),site=SITES[planSite];
+  const target=()=>{const now=Date.now(),soon=open.filter(v=>v.rdv&&rdvEnd(v)>now&&rdvDate(v)-now<90*60000).sort((a,b)=>rdvDate(a)-rdvDate(b))[0];
+    if(soon)return{v:soon,k:planSite==="SNIEC"?hallKey(soon):"SWEECC"};
+    if(planSite==="SWEECC")return open[0]?{v:open[0],k:"SWEECC"}:null;
+    const h=hallOrder().find(h=>open.some(v=>hallKey(v)===h));return h?{v:open.find(v=>hallKey(v)===h),k:h}:null};
+  const t=target(),names=t?open.filter(v=>(planSite==="SNIEC"?hallKey(v):"SWEECC")===t.k).map(v=>v.societe).slice(0,3).join(", "):"";
+  const label=t?(t.k==="SWEECC"?"World Expo":`hall ${t.k}`):"";
+  if(!pos){g.innerHTML=t?`<b>Prochain : ${esc(label)}</b><span>${esc(names)}${t.v.rdv?" · RDV "+esc(hm(rdvDate(t.v))):""}</span><span class="note">Touchez « Me localiser » pour la distance et la direction.</span>`
+    :`<span>${open.length?"Les exposants restants n'ont pas encore de hall : complétez le stand.":"Rien à voir sur ce site pour l'instant."}</span>`;return}
+  const p=[pos.lat,pos.lon],dSite=dist(p,centre(planSite==="SNIEC"?"SNIEC":"SWEECC")),acc=pos.acc>60?` (position à ± ${fmtM(pos.acc)})`:"";
+  if(dSite>1500){g.innerHTML=`<b>Vous êtes à ${esc(fmtM(dSite))} du site ${esc(site.nom)}</b><span>Pour y aller, utilisez le bouton Plans.</span>`;return}
+  const here=planSite==="SNIEC"?HALLS.find(h=>inside(p,GEO[h])):(inside(p,GEO.SWEECC)?"SWEECC":"");
+  const where=here?`Vous êtes dans ${here==="SWEECC"?"le World Expo":"le hall "+here}${acc}.`:`Vous êtes dehors${acc}.`;
+  if(!t){g.innerHTML=`<b>Plus rien à voir ici</b><span>${esc(where)}</span>`;return}
+  const d=dist(p,centre(t.k));
+  g.innerHTML=t.k===here?`<b>Vous y êtes : ${esc(label)}</b><span>${esc(names)} · cherchez le stand ${esc(t.v.stand||"")}</span>`
+    :`<b>Prochain : ${esc(label)} à ${esc(fmtM(d))} vers ${esc(cap(p,centre(t.k)))}</b><span>${esc(names)}${t.v.rdv?" · RDV "+esc(hm(rdvDate(t.v))):""}</span><span class="note">${esc(where)}</span>`}
+
+function startGps(){
+  if(gpsWatch!==null){stopGps();return}
+  if(!navigator.geolocation)return toast("Localisation indisponible sur ce téléphone");
+  $("#locBtn").textContent="Recherche du GPS…";
+  gpsWatch=navigator.geolocation.watchPosition(p=>{pos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};$("#locBtn").textContent="Arrêter la localisation";renderPlan();renderVList()},
+    e=>{stopGps();toast(e.code===1?"Localisation refusée : Réglages › Confidentialité › Service de localisation":"Position introuvable pour l'instant")},
+    {enableHighAccuracy:true,maximumAge:5000,timeout:30000})}
+function stopGps(){if(gpsWatch!==null){navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null}$("#locBtn").textContent="Me localiser"}
+$("#locBtn").onclick=startGps;
+
+function renderVList(){
+  const all=[...visites.values()],done=all.filter(v=>v.vu).length;
+  $("#vStats").innerHTML=`<span><b>${all.length-done}</b> à voir</span><span><b>${done}</b> vus</span>`;
+  const fl=$("#vFilter");fl.innerHTML="";
+  for(const[k,l]of[["todo","À voir"],["all","Tous"],["done","Vus"]]){const b=document.createElement("button");b.className="chip";b.textContent=l;b.setAttribute("aria-pressed",vFilt===k);b.onclick=()=>{vFilt=k;renderVList()};fl.append(b)}
+  if(selHall){const b=document.createElement("button");b.className="chip";b.setAttribute("aria-pressed","true");b.textContent=`Hall ${selHall} ×`;b.onclick=()=>{selHall="";renderVoir()};fl.append(b)}
+  const rows=all.filter(v=>(vFilt==="all"||(vFilt==="done")===!!v.vu)&&(!selHall||hallKey(v)===selHall)).sort(byParcours(hallOrder()));
+  const L=$("#vList");L.innerHTML="";
+  if(!all.length){L.innerHTML=`<div class="empty"><b>Aucun exposant à voir</b>Ajoutez ceux que vous voulez rencontrer : l'appli les range par hall et vous indique le prochain.</div>`;return}
+  if(!rows.length){L.innerHTML=`<div class="empty">${vFilt==="todo"?"Tout est vu. Bravo.":"Aucun exposant ici."}</div>`;return}
+  let cur=null,box=null;
+  for(const v of rows){const s=siteOf(v),h=hallKey(v),key=s+"|"+(s==="SNIEC"?h:"");
+    if(key!==cur){cur=key;box=document.createElement("div");box.className="vgroup";
+      const n=rows.filter(x=>siteOf(x)+"|"+(siteOf(x)==="SNIEC"?hallKey(x):"")===key).length;
+      const title=!s?"Emplacement à compléter":s==="SWEECC"?SITES.SWEECC.long:HALLS.includes(h)?`SNIEC · hall ${h}`:"SNIEC · hall à compléter";
+      let d="";if(pos&&s==="SNIEC"&&HALLS.includes(h)&&dist([pos.lat,pos.lon],centre("SNIEC"))<1500)d=fmtM(dist([pos.lat,pos.lon],centre(h)));
+      box.innerHTML=`<h3><span>${esc(title)}</span><span>${n}${d?" · "+esc(d):""}</span></h3>`;L.append(box)}
+    const r=document.createElement("div");r.className="vrow"+(v.vu?" done":"");
+    r.innerHTML=`<button class="tick" aria-label="${v.vu?"Marquer à voir":"Marquer vu"}">${v.vu?"✓":""}</button>
+      <button class="vbody"><span class="vn">${esc(v.societe)}</span><span class="vo">${esc(v.objet||v.marques||"—")}</span></button>
+      <div class="vr">${v.rdv?`<span class="pill rdvp">${esc(hm(rdvDate(v)))}</span>`:v.priorite==="Indispensable"?`<span class="pill must">Indispensable</span>`:""}<span>${esc(v.stand||"")}</span></div>`;
+    r.querySelector(".tick").onclick=async()=>{await putVisite({...v,vu:!v.vu,edited:true});renderVoir()};
+    r.querySelector(".vbody").onclick=()=>openVisite(v);box.append(r)}}
+
+function segChips(el,list,cur,set){el.innerHTML="";for(const v of list){const b=document.createElement("button");b.type="button";b.className="chip";
+  b.textContent=SITES[v]?SITES[v].long:v;b.setAttribute("aria-pressed",cur===v);b.onclick=()=>set(v);el.append(b)}}
+function renderVisChips(){segChips($("#v_site"),["SNIEC","SWEECC"],vform.site,v=>{vform.site=vform.site===v?"":v;renderVisChips()});
+  segChips($("#v_prio"),PRIOS,vform.prio,v=>{vform.prio=v;renderVisChips()})}
+const VF=["societe","marques","objet","stand","hall","rdv","rdvFin","notes"];
+function openVisite(v){
+  vform={id:v?v.id:null,site:v?v.site||siteOf(v):"",prio:v?v.priorite||"Si possible":"Si possible"};
+  for(const k of VF)$("#v_"+k).value=v&&v[k]||"";
+  $("#visTitle").textContent=v?v.societe:"Exposant à voir";$("#visMeetBar").hidden=!v;$("#visDelBar").hidden=!v;$("#visDelOk").hidden=true;
+  $("#visMeet").textContent=v&&v.ficheId&&fiches.has(v.ficheId)?"Ouvrir la fiche de rencontre":"Rencontré : créer la fiche";
+  renderVisChips();show("visite")}
+$("#v_stand").oninput=()=>{const h=hallKey({stand:$("#v_stand").value});if(HALLS.includes(h)){$("#v_hall").value=h;if(!vform.site){vform.site="SNIEC";renderVisChips()}}};
+async function saveVisite(){
+  const f={};for(const k of VF)f[k]=$("#v_"+k).value.trim();f.hall=f.hall.toUpperCase();
+  if(!f.societe){toast("Indiquez au moins la société");return null}
+  const old=vform.id&&visites.get(vform.id),id=vform.id||"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const v={...(old||{vu:false,createdAt:new Date().toISOString()}),...f,id,site:vform.site,priorite:vform.prio,edited:true};
+  return await putVisite(v)?visites.get(id):null}
+$("#visSave").onclick=async()=>{if(await saveVisite()){renderVoir();show("voir");toast("Exposant enregistré")}};
+$("#visCancel").onclick=()=>{renderVoir();show("voir")};
+$("#visMeet").onclick=async()=>{const v=await saveVisite();if(!v)return;
+  if(v.ficheId&&fiches.has(v.ficheId))return openRecord(records().find(r=>r.id===v.ficheId));
+  resetForm();form.visiteId=v.id;$("#f_societe").value=v.societe;$("#f_marques").value=v.marques||"";$("#f_stand").value=v.stand||"";$("#f_hall").value=hallKey(v)||"";
+  $("#formTitle").textContent=`Rencontre : ${v.societe}`;$("#cancelEdit").hidden=false;show("new")};
+$("#visDel").onclick=()=>{$("#visDelOk").hidden=false};
+$("#visDelOk").onclick=async()=>{const id=vform.id;try{await idb("readwrite",s=>s.delete(id),"visites")}catch(e){return toast("Suppression impossible")}
+  visites.delete(id);if(id.startsWith("rdv-")||!id.startsWith("v")){let g={};try{g=JSON.parse(ls.get("seedGone")||"{}")}catch(e){}g[id]=1;ls.set("seedGone",JSON.stringify(g))}
+  renderVoir();show("voir");toast("Retiré de la liste")};
+$("#addVisite").onclick=()=>openVisite(null);
+setInterval(()=>{if(!$("#vVoir").hidden){renderRdv();renderPlan()}},60000);
+
+/* ---------- navigation ---------- */
+function show(v){
+  $("#vVoir").hidden=v!=="voir";$("#vVisite").hidden=v!=="visite";$("#vNew").hidden=v!=="new";$("#vContacts").hidden=v!=="list";
+  $("#tVoir").setAttribute("aria-selected",v==="voir"||v==="visite");$("#tNew").setAttribute("aria-selected",v==="new");$("#tList").setAttribute("aria-selected",v==="list");
+  if(v!=="voir")stopGps();if(v==="voir"||v==="new"||v==="list")ls.set("tab",v);window.scrollTo(0,0)}
+$("#tNew").onclick=()=>show("new");$("#tList").onclick=()=>{render();showStorage();show("list")};$("#tVoir").onclick=()=>{renderVoir();show("voir")};
+let tt;function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600)}
+async function showStorage(){try{const e=await navigator.storage.estimate();$("#storage").textContent=`Place utilisée sur le téléphone : ${(e.usage/1048576).toFixed(0)} Mo.`}catch(e){}}
+
+/* ---------- démarrage ---------- */
+resetForm();render();renderVoir();
+const startTab=ls.get("tab")||"voir";if(startTab==="list")showStorage();show(startTab);
+idb("readonly",s=>s.getAll()).then(all=>{for(const r of all||[])fiches.set(r.id,r);render()}).catch(()=>toast("Stockage indisponible : ouvrez l'appli depuis l'écran d'accueil"));
+loadVisites().then(renderVoir);
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
