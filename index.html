@@ -216,11 +216,14 @@ input[type=datetime-local],input[type=time]{width:100%;border:1px solid var(--li
       <div class="cam">
         <button class="btn primary big" data-shoot="carte" data-cap="1">Carte de visite</button>
         <button class="btn primary big" data-shoot="stand" data-cap="1">Stand / machine</button>
+        <button class="btn primary big" data-shoot="wechat" data-cap="1">QR WeChat</button>
       </div>
       <div class="row" style="gap:16px">
         <button class="link" data-shoot="carte" style="flex:0 0 auto">Carte depuis la galerie</button>
         <button class="link" data-shoot="stand" style="flex:0 0 auto">Stand depuis la galerie</button>
+        <button class="link" data-shoot="wechat" style="flex:0 0 auto">WeChat depuis la galerie</button>
       </div>
+      <p class="note">QR WeChat : photographiez le code que vous montre l'exposant. Plus tard, dans WeChat › Scanner › Album, choisissez cette photo pour l'ajouter en contact.</p>
       <input type="file" id="fileCam" accept="image/*" capture="environment">
       <input type="file" id="fileLib" accept="image/*" multiple>
       <div class="shots" id="shots"></div>
@@ -339,7 +342,7 @@ for(const inp of [$("#fileCam"),$("#fileLib")])inp.onchange=async()=>{
   renderShots()};
 function renderShots(){const el=$("#shots");el.innerHTML="";
   form.photos.forEach((p,i)=>{const d=document.createElement("div");d.className="shot";
-    d.innerHTML=`<img alt="" src="${photoUrl(p)}"><span class="tag">${p.kind==="carte"?"Carte":"Stand"}</span><button aria-label="Retirer la photo">×</button>`;
+    d.innerHTML=`<img alt="" src="${photoUrl(p)}"><span class="tag">${{carte:"Carte",stand:"Stand",wechat:"WeChat"}[p.kind]||"Photo"}</span><button aria-label="Retirer la photo">×</button>`;
     d.querySelector("button").onclick=()=>{form.photos.splice(i,1);renderShots()};el.append(d)})}
 
 /* ---------- puces ---------- */
@@ -441,16 +444,16 @@ async function makeXlsx(head,rows,widths){
     {name:"xl/styles.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="${ns}/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2CE1B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
     {name:"xl/worksheets/sheet1.xml",data:sheet}],"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
 const slug=s=>String(s||"exposant").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"exposant";
-const COLS=[["N°",5],["Date",11],["Heure",7],["Société",26],["Nom chinois",16],["Hall",6],["Stand",9],["Marques",24],["Activités",26],["Types de machines",30],["Contact",20],["Fonction",18],["Email",26],["Téléphone",18],["WeChat",14],["Site web",22],["Pays",10],["Ville",10],["Intérêt",8],["Suite à donner",24],["Notes",40],["Photos carte",34],["Photos stand",34],["Traité le",11],["Par",10]];
+const COLS=[["N°",5],["Date",11],["Heure",7],["Société",26],["Nom chinois",16],["Hall",6],["Stand",9],["Marques",24],["Activités",26],["Types de machines",30],["Contact",20],["Fonction",18],["Email",26],["Téléphone",18],["WeChat",14],["Site web",22],["Pays",10],["Ville",10],["Intérêt",8],["Suite à donner",24],["Notes",40],["Photos carte",34],["Photos stand",34],["Photos WeChat",34],["Traité le",11],["Par",10]];
 async function buildExport(){
   const all=records(),files=[],json=[],rows=[];
-  for(const r of all){const num=String(r.num).padStart(3,"0"),names={carte:[],stand:[]};
-    for(const k of ["carte","stand"])r.photos.filter(p=>p.kind===k).forEach((p,i)=>{const n=`photos/${num}_${slug(r.societe)}_${k}_${i+1}.jpg`;names[k].push(n);files.push({name:n,data:p.blob})});
+  for(const r of all){const num=String(r.num).padStart(3,"0"),names={carte:[],stand:[],wechat:[]};
+    for(const k of ["carte","stand","wechat"])r.photos.filter(p=>p.kind===k).forEach((p,i)=>{const n=`photos/${num}_${slug(r.societe)}_${k}_${i+1}.jpg`;names[k].push(n);files.push({name:n,data:p.blob})});
     const d=new Date(r.createdAt);
     rows.push([r.num,d.toLocaleDateString("fr-FR"),d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),r.societe,r.societe_cn,r.hall,r.stand,r.marques,
       r.activites.join(", "),r.machines.join(", "),r.contact,r.fonction,r.email,r.tel,r.wechat,r.site,r.pays,r.ville,r.interet,r.suites.join(", "),r.notes,
-      names.carte.join("\n"),names.stand.join("\n"),"",""]);
-    const {photos,num:_n,...rest}=r;json.push({num:r.num,...rest,photos:[...names.carte.map(f=>({kind:"carte",file:f})),...names.stand.map(f=>({kind:"stand",file:f}))]})}
+      names.carte.join("\n"),names.stand.join("\n"),names.wechat.join("\n"),"",""]);
+    const {photos,num:_n,...rest}=r;json.push({num:r.num,...rest,photos:[...names.carte.map(f=>({kind:"carte",file:f})),...names.stand.map(f=>({kind:"stand",file:f})),...names.wechat.map(f=>({kind:"wechat",file:f}))]})}
   const xlsx=await makeXlsx(COLS.map(c=>c[0]),rows,COLS.map(c=>c[1]));
   const vis=[...visites.values()].sort(byParcours(null));
   const numOf=id=>(all.find(r=>r.id===id)||{}).num||"";
@@ -480,9 +483,11 @@ const SITES={SNIEC:{nom:"SNIEC",long:"SNIEC · Pudong",q:"上海新国际博览�
 const PRIOS=["Indispensable","Si possible"];
 let visites=new Map(),planSite="SNIEC",pos=null,gpsWatch=null,vFilt="todo",selHall="",vform=null;
 
-const hallKey=v=>{const h=String(v.hall||"").toUpperCase().trim();if(HALLS.includes(h))return h;
-  const m=String(v.stand||"").toUpperCase().match(/^\s*([EWN][1-7])(?![0-9])/);return m?m[1]:h};
-const siteOf=v=>v.site||(HALLS.includes(hallKey(v))?"SNIEC":"");
+// Stands du catalogue : « E3.512 », « N6.918 » (SNIEC), « H1.178 » (World Expo), « Outdoor D.41,D.42 » (extérieur SNIEC).
+const hallKey=v=>{const h=String(v.hall||"").toUpperCase().trim();if(h)return h;const s=String(v.stand||"").toUpperCase();
+  let m=s.match(/^\s*([EWN]\d{1,2}|H\d{1,2})(?![0-9])/);if(m)return m[1];m=s.match(/OUTDOOR\s*([A-Z])\b/);return m?"EXT "+m[1]:""};
+const siteOf=v=>v.site||(/^H\d/.test(hallKey(v))?"SWEECC":/^([EWN]\d|EXT)/.test(hallKey(v))?"SNIEC":"");
+const zoneLabel=k=>!k?"":k.startsWith("EXT")?`extérieur zone ${k.slice(4)}`:`hall ${k}`;
 const centre=k=>{const p=GEO[k];return[p.reduce((s,q)=>s+q[0],0)/p.length,p.reduce((s,q)=>s+q[1],0)/p.length]};
 function dist(a,b){const k=Math.PI/180,x=(b[1]-a[1])*k*Math.cos((a[0]+b[0])/2*k),y=(b[0]-a[0])*k;return Math.hypot(x,y)*6371000}
 function cap(a,b){const k=Math.PI/180,x=(b[1]-a[1])*Math.cos((a[0]+b[0])/2*k),y=b[0]-a[0],deg=(Math.atan2(x,y)/k+360)%360;
@@ -566,20 +571,23 @@ function renderGuide(open){
   const g=$("#guide"),site=SITES[planSite];
   const target=()=>{const now=Date.now(),soon=open.filter(v=>v.rdv&&rdvEnd(v)>now&&rdvDate(v)-now<90*60000).sort((a,b)=>rdvDate(a)-rdvDate(b))[0];
     if(soon)return{v:soon,k:planSite==="SNIEC"?hallKey(soon):"SWEECC"};
+    const ext=planSite==="SNIEC"&&!open.some(v=>HALLS.includes(hallKey(v)))&&open.find(v=>hallKey(v));if(ext)return{v:ext,k:hallKey(ext)};
     if(planSite==="SWEECC")return open[0]?{v:open[0],k:"SWEECC"}:null;
     const h=hallOrder().find(h=>open.some(v=>hallKey(v)===h));return h?{v:open.find(v=>hallKey(v)===h),k:h}:null};
   const t=target(),names=t?open.filter(v=>(planSite==="SNIEC"?hallKey(v):"SWEECC")===t.k).map(v=>v.societe).slice(0,3).join(", "):"";
-  const label=t?(t.k==="SWEECC"?"World Expo":`hall ${t.k}`):"";
-  if(!pos){g.innerHTML=t?`<b>Prochain : ${esc(label)}</b><span>${esc(names)}${t.v.rdv?" · RDV "+esc(hm(rdvDate(t.v))):""}</span><span class="note">Touchez « Me localiser » pour la distance et la direction.</span>`
+  const label=!t?"":t.k==="SWEECC"?"World Expo"+(hallKey(t.v)?" · "+zoneLabel(hallKey(t.v)):""):zoneLabel(t.k)||"emplacement à compléter";
+  const outN=planSite==="SNIEC"?open.filter(v=>hallKey(v).startsWith("EXT")):[],outTxt=outN.length?`<span class="note">En extérieur : ${outN.length} exposant${outN.length>1?"s":""} (zones ${[...new Set(outN.map(v=>hallKey(v).slice(4)))].sort().join(", ")}), non dessinées sur le plan : suivez la signalétique.</span>`:"";
+  if(!pos){g.innerHTML=t?`<b>Prochain : ${esc(label)}</b><span>${esc(names)}${t.v.rdv?" · RDV "+esc(hm(rdvDate(t.v))):""}</span><span class="note">Touchez « Me localiser » pour la distance et la direction.</span>${outTxt}`
     :`<span>${open.length?"Les exposants restants n'ont pas encore de hall : complétez le stand.":"Rien à voir sur ce site pour l'instant."}</span>`;return}
   const p=[pos.lat,pos.lon],dSite=dist(p,centre(planSite==="SNIEC"?"SNIEC":"SWEECC")),acc=pos.acc>60?` (position à ± ${fmtM(pos.acc)})`:"";
   if(dSite>1500){g.innerHTML=`<b>Vous êtes à ${esc(fmtM(dSite))} du site ${esc(site.nom)}</b><span>Pour y aller, utilisez le bouton Plans.</span>`;return}
   const here=planSite==="SNIEC"?HALLS.find(h=>inside(p,GEO[h])):(inside(p,GEO.SWEECC)?"SWEECC":"");
   const where=here?`Vous êtes dans ${here==="SWEECC"?"le World Expo":"le hall "+here}${acc}.`:`Vous êtes dehors${acc}.`;
   if(!t){g.innerHTML=`<b>Plus rien à voir ici</b><span>${esc(where)}</span>`;return}
+  if(!GEO[t.k]){g.innerHTML=`<b>Prochain : ${esc(label)}</b><span>${esc(names)}${t.v.rdv?" · RDV "+esc(hm(rdvDate(t.v))):""} · stand ${esc(t.v.stand||"")}</span><span class="note">${esc(where)}</span>${outTxt}`;return}
   const d=dist(p,centre(t.k));
   g.innerHTML=t.k===here?`<b>Vous y êtes : ${esc(label)}</b><span>${esc(names)} · cherchez le stand ${esc(t.v.stand||"")}</span>`
-    :`<b>Prochain : ${esc(label)} à ${esc(fmtM(d))} vers ${esc(cap(p,centre(t.k)))}</b><span>${esc(names)}${t.v.rdv?" · RDV "+esc(hm(rdvDate(t.v))):""}</span><span class="note">${esc(where)}</span>`}
+    :`<b>Prochain : ${esc(label)} à ${esc(fmtM(d))} vers ${esc(cap(p,centre(t.k)))}</b><span>${esc(names)}${t.v.rdv?" · RDV "+esc(hm(rdvDate(t.v))):""}</span><span class="note">${esc(where)}</span>${outTxt}`}
 
 function startGps(){
   if(gpsWatch!==null){stopGps();return}
@@ -602,10 +610,10 @@ function renderVList(){
   if(!all.length){L.innerHTML=`<div class="empty"><b>Aucun exposant à voir</b>Ajoutez ceux que vous voulez rencontrer : l'appli les range par hall et vous indique le prochain.</div>`;return}
   if(!rows.length){L.innerHTML=`<div class="empty">${vFilt==="todo"?"Tout est vu. Bravo.":"Aucun exposant ici."}</div>`;return}
   let cur=null,box=null;
-  for(const v of rows){const s=siteOf(v),h=hallKey(v),key=s+"|"+(s==="SNIEC"?h:"");
+  for(const v of rows){const s=siteOf(v),h=hallKey(v),key=s+"|"+h;
     if(key!==cur){cur=key;box=document.createElement("div");box.className="vgroup";
-      const n=rows.filter(x=>siteOf(x)+"|"+(siteOf(x)==="SNIEC"?hallKey(x):"")===key).length;
-      const title=!s?"Emplacement à compléter":s==="SWEECC"?SITES.SWEECC.long:HALLS.includes(h)?`SNIEC · hall ${h}`:"SNIEC · hall à compléter";
+      const n=rows.filter(x=>siteOf(x)+"|"+hallKey(x)===key).length;
+      const title=!s?"Emplacement à compléter":`${SITES[s].nom} · ${zoneLabel(h)||"stand à compléter"}`;
       let d="";if(pos&&s==="SNIEC"&&HALLS.includes(h)&&dist([pos.lat,pos.lon],centre("SNIEC"))<1500)d=fmtM(dist([pos.lat,pos.lon],centre(h)));
       box.innerHTML=`<h3><span>${esc(title)}</span><span>${n}${d?" · "+esc(d):""}</span></h3>`;L.append(box)}
     const r=document.createElement("div");r.className="vrow"+(v.vu?" done":"");
@@ -626,7 +634,7 @@ function openVisite(v){
   $("#visTitle").textContent=v?v.societe:"Exposant à voir";$("#visMeetBar").hidden=!v;$("#visDelBar").hidden=!v;$("#visDelOk").hidden=true;
   $("#visMeet").textContent=v&&v.ficheId&&fiches.has(v.ficheId)?"Ouvrir la fiche de rencontre":"Rencontré : créer la fiche";
   renderVisChips();show("visite")}
-$("#v_stand").oninput=()=>{const h=hallKey({stand:$("#v_stand").value});if(HALLS.includes(h)){$("#v_hall").value=h;if(!vform.site){vform.site="SNIEC";renderVisChips()}}};
+$("#v_stand").oninput=()=>{const st={stand:$("#v_stand").value},h=hallKey(st);if(h){$("#v_hall").value=h;if(!vform.site){vform.site=siteOf(st);renderVisChips()}}};
 async function saveVisite(){
   const f={};for(const k of VF)f[k]=$("#v_"+k).value.trim();f.hall=f.hall.toUpperCase();
   if(!f.societe){toast("Indiquez au moins la société");return null}
