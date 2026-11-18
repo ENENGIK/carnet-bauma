@@ -325,60 +325,95 @@ const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:
 
 function records(){const out=[...fiches.values()].sort((a,b)=>a.createdAt.localeCompare(b.createdAt));out.forEach((r,i)=>r.num=i+1);return out}
 const urls=new WeakMap();
-const photoUrl=p=>{if(!urls.has(p.blob))urls.set(p.blob,URL.createObjectURL(p.blob));return urls.get(p.blob)};
+// Les listes affichent la miniature : décoder 150 photos pleine taille ferait tomber l'appli sur iPhone.
+const photoUrl=p=>{const b=p.thumb||p.blob;if(!urls.has(b))urls.set(b,URL.createObjectURL(b));return urls.get(b)};
 
 /* ---------- photos ---------- */
-async function shrink(file){
-  let src;try{src=await createImageBitmap(file,{imageOrientation:"from-image"})}catch(e){
-    src=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=URL.createObjectURL(file)})}
-  const w=src.width,h=src.height,k=Math.min(1,1800/Math.max(w,h));
+async function shrink(file,max=1800,q=0.82){
+  let src,tmp;try{src=await createImageBitmap(file,{imageOrientation:"from-image"})}catch(e){
+    tmp=URL.createObjectURL(file);src=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=tmp})}
+  const w=src.width,h=src.height,k=Math.min(1,max/Math.max(w,h));
   const c=document.createElement("canvas");c.width=Math.round(w*k);c.height=Math.round(h*k);
   c.getContext("2d").drawImage(src,0,0,c.width,c.height);
-  return new Promise(res=>c.toBlob(b=>res(b||file),"image/jpeg",0.82))}
+  if(src.close)src.close();if(tmp)URL.revokeObjectURL(tmp);
+  // Safari plafonne la mémoire totale des canvas : on rend celui-ci dès que le JPEG est produit.
+  return new Promise(res=>c.toBlob(b=>{c.width=c.height=0;res(b||file)},"image/jpeg",q))}
 document.querySelectorAll("[data-shoot]").forEach(b=>b.onclick=()=>{shootKind=b.dataset.shoot;(b.dataset.cap?$("#fileCam"):$("#fileLib")).click()});
 for(const inp of [$("#fileCam"),$("#fileLib")])inp.onchange=async()=>{
   const files=[...inp.files];inp.value="";
-  for(const f of files){try{form.photos.push({kind:shootKind,blob:await shrink(f)})}catch(e){toast("Photo illisible, réessayez")}}
-  renderShots()};
+  for(const f of files){try{const blob=await shrink(f);let thumb;try{thumb=await shrink(blob,240,0.7)}catch(e){}
+    form.photos.push({kind:shootKind,blob,thumb})}catch(e){toast("Photo illisible, réessayez")}}
+  renderShots();saveDraft()};
 function renderShots(){const el=$("#shots");el.innerHTML="";
   form.photos.forEach((p,i)=>{const d=document.createElement("div");d.className="shot";
     d.innerHTML=`<img alt="" src="${photoUrl(p)}"><span class="tag">${{carte:"Carte",stand:"Stand",wechat:"WeChat"}[p.kind]||"Photo"}</span><button aria-label="Retirer la photo">×</button>`;
-    d.querySelector("button").onclick=()=>{form.photos.splice(i,1);renderShots()};el.append(d)})}
+    d.querySelector("button").onclick=()=>{form.photos.splice(i,1);renderShots();saveDraft()};el.append(d)})}
 
 /* ---------- puces ---------- */
 function chips(el,list,key,single){el.innerHTML="";
   for(const v of list){const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=v;b.dataset.v=v;
     b.setAttribute("aria-pressed",form.sel[key].has(v));
-    b.onclick=()=>{const s=form.sel[key];if(s.has(v))s.delete(v);else{if(single)s.clear();s.add(v)}renderChips()};el.append(b)}}
+    b.onclick=()=>{const s=form.sel[key];if(s.has(v))s.delete(v);else{if(single)s.clear();s.add(v)}renderChips();touch()};el.append(b)}}
 function renderChips(){chips($("#c_activites"),ACTIVITES,"activites");chips($("#c_machines"),MACHINES,"machines");
   chips($("#c_interet"),INTERETS,"interet",true);chips($("#c_suites"),SUITES,"suites")}
 
 /* ---------- formulaire ---------- */
+// Brouillon : la saisie en cours (photos comprises) est écrite sur le téléphone à chaque changement.
+// iOS peut recharger l'appli au retour de l'appareil photo ou après un appel : sans ça, la fiche en cours serait perdue.
+const DRAFT="__brouillon";
+let draftT=0,cancelArmed=0,saving=false;
+const formState=()=>JSON.stringify([TEXT.map(k=>$("#f_"+k).value),Object.values(form.sel).map(s=>[...s]),form.photos.map(p=>p.kind+p.blob.size)]);
+const dirty=()=>formState()!==form.base;
+function updateCancel(){const b=$("#cancelEdit"),edit=form.id||form.visiteId;b.hidden=!(edit||dirty());b.textContent=edit?"Annuler":"Vider la fiche";cancelArmed=0}
+function touch(){clearTimeout(draftT);draftT=setTimeout(saveDraft,400);updateCancel()}
+async function saveDraft(){clearTimeout(draftT);updateCancel();
+  try{if(!dirty())return await idb("readwrite",s=>s.delete(DRAFT));
+    const f={};for(const k of TEXT)f[k]=$("#f_"+k).value;
+    await idb("readwrite",s=>s.put({id:DRAFT,ficheId:form.id,visiteId:form.visiteId,title:$("#formTitle").textContent,f,
+      sel:Object.fromEntries(Object.entries(form.sel).map(([k,v])=>[k,[...v]])),photos:form.photos.map(p=>({kind:p.kind,blob:p.blob,thumb:p.thumb}))}))}catch(e){}}
+function clearDraft(){clearTimeout(draftT);idb("readwrite",s=>s.delete(DRAFT)).catch(()=>{})}
+function restoreDraft(d){
+  const S=k=>new Set((d.sel&&d.sel[k])||[]);
+  form={id:d.ficheId&&fiches.has(d.ficheId)?d.ficheId:null,visiteId:d.visiteId||null,photos:d.photos||[],sel:{activites:S("activites"),machines:S("machines"),interet:S("interet"),suites:S("suites")},base:""};
+  for(const k of TEXT)$("#f_"+k).value=(d.f&&d.f[k])||"";
+  $("#formTitle").textContent=form.id||form.visiteId?d.title||"Fiche en cours":"Nouvelle fiche";$("#delBar").hidden=!form.id;$("#delConfirm").hidden=true;
+  renderChips();renderShots();updateCancel();show("new");toast("Fiche en cours retrouvée")}
+// Une saisie non enregistrée n'est jamais écrasée en ouvrant une autre fiche.
+function busyForm(){if(!dirty())return false;show("new");toast("Une fiche est en cours : enregistrez-la ou videz-la d'abord");return true}
+$("#vNew").addEventListener("input",touch);
+
 function resetForm(){form={id:null,visiteId:null,photos:[],sel:{activites:new Set(),machines:new Set(),interet:new Set(),suites:new Set()}};
   for(const k of TEXT)$("#f_"+k).value="";$("#formTitle").textContent="Nouvelle fiche";
-  $("#cancelEdit").hidden=true;$("#delBar").hidden=true;$("#delConfirm").hidden=true;renderChips();renderShots()}
+  $("#delBar").hidden=true;$("#delConfirm").hidden=true;renderChips();renderShots();form.base=formState();updateCancel()}
 function openRecord(r){
-  form={id:r.id,photos:r.photos.map(p=>({...p})),sel:{activites:new Set(r.activites),machines:new Set(r.machines),interet:new Set(r.interet?[r.interet]:[]),suites:new Set(r.suites)}};
+  if(form.id===r.id&&dirty())return show("new");
+  if(busyForm())return;
+  form={id:r.id,visiteId:null,photos:r.photos.map(p=>({...p})),sel:{activites:new Set(r.activites),machines:new Set(r.machines),interet:new Set(r.interet?[r.interet]:[]),suites:new Set(r.suites)}};
   for(const k of TEXT)$("#f_"+k).value=r[k]||"";
-  $("#formTitle").textContent=`Fiche n° ${r.num}`;$("#cancelEdit").hidden=false;$("#delBar").hidden=false;$("#delConfirm").hidden=true;
-  renderChips();renderShots();show("new")}
-$("#cancelEdit").onclick=()=>{const back=form.visiteId?"voir":"list";resetForm();if(back==="voir")renderVoir();else render();show(back)};
+  $("#formTitle").textContent=`Fiche n° ${r.num}`;$("#delBar").hidden=false;$("#delConfirm").hidden=true;
+  renderChips();renderShots();form.base=formState();updateCancel();show("new")}
+$("#cancelEdit").onclick=()=>{
+  if(dirty()&&Date.now()-cancelArmed>4000){cancelArmed=Date.now();$("#cancelEdit").textContent="Confirmer : effacer la saisie ?";return}
+  const back=form.visiteId?"voir":form.id?"list":"new";resetForm();clearDraft();if(back==="voir")renderVoir();else render();show(back)};
 $("#saveBtn").onclick=async()=>{
+  if(saving)return;
   const f={};for(const k of TEXT)f[k]=$("#f_"+k).value.trim();
   if(!f.societe&&!f.contact&&!form.photos.length){toast("Ajoutez au moins une photo ou un nom");return}
+  saving=true;try{await saveFiche(f)}finally{saving=false}};
+async function saveFiche(f){
   const prev=form.id&&fiches.get(form.id),now=new Date().toISOString();
   const id=form.id||"f"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const rec={...f,id,activites:[...form.sel.activites],machines:[...form.sel.machines],interet:[...form.sel.interet][0]||"",suites:[...form.sel.suites],
-    createdAt:prev?prev.createdAt:now,updatedAt:now,photos:form.photos.map(p=>({kind:p.kind,blob:p.blob}))};
+    createdAt:prev?prev.createdAt:now,updatedAt:now,photos:form.photos.map(p=>({kind:p.kind,blob:p.blob,thumb:p.thumb}))};
   try{await idb("readwrite",s=>s.put(rec))}catch(e){toast("Enregistrement impossible : mémoire du téléphone pleine ?");return}
   fiches.set(id,rec);
   const v=form.visiteId&&visites.get(form.visiteId);if(v)await putVisite({...v,vu:true,ficheId:id});
-  const wasEdit=!!form.id;resetForm();render();
-  toast(wasEdit?"Fiche mise à jour":`Fiche n° ${records().find(r=>r.id===id).num} enregistrée`);if(wasEdit)show("list")};
+  const wasEdit=!!form.id;resetForm();clearDraft();render();
+  toast(wasEdit?"Fiche mise à jour":`Fiche n° ${records().find(r=>r.id===id).num} enregistrée`);if(wasEdit)show("list")}
 $("#delBtn").onclick=()=>{$("#delConfirm").hidden=false};
 $("#delConfirm").onclick=async()=>{const id=form.id;if(!id)return;
   try{await idb("readwrite",s=>s.delete(id))}catch(e){toast("Suppression impossible");return}
-  fiches.delete(id);resetForm();render();show("list");toast("Fiche supprimée")};
+  fiches.delete(id);resetForm();clearDraft();render();show("list");toast("Fiche supprimée")};
 
 /* ---------- liste ---------- */
 function render(){
@@ -407,7 +442,7 @@ function renderBackup(){
   let txt="jamais faite";
   if(last){const d=new Date(last);txt=`${d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})} à ${d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} · ${lastN} fiches`}
   $("#lastExport").textContent=txt;
-  $("#backup").classList.toggle("late",n>0&&(n>lastN||!last))}
+  $("#backup").classList.toggle("late",n>0&&(!last||n!==lastN||[...fiches.values()].some(r=>r.updatedAt>last)))}
 
 /* ---------- export : zip et xlsx écrits ici, sans bibliothèque ni réseau ---------- */
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
@@ -421,7 +456,7 @@ async function makeZip(files,type){
     const h=new DataView(new ArrayBuffer(30));
     h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(10,tm,true);h.setUint16(12,dt,true);
     h.setUint32(14,crc,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);h.setUint16(26,name.length,true);
-    parts.push(h.buffer,name,data);
+    parts.push(h.buffer,name,f.data instanceof Blob?f.data:data);
     const c=new DataView(new ArrayBuffer(46));
     c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(12,tm,true);c.setUint16(14,dt,true);
     c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);c.setUint16(28,name.length,true);c.setUint32(42,off,true);
@@ -453,7 +488,7 @@ async function buildExport(){
     rows.push([r.num,d.toLocaleDateString("fr-FR"),d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),r.societe,r.societe_cn,r.hall,r.stand,r.marques,
       r.activites.join(", "),r.machines.join(", "),r.contact,r.fonction,r.email,r.tel,r.wechat,r.site,r.pays,r.ville,r.interet,r.suites.join(", "),r.notes,
       names.carte.join("\n"),names.stand.join("\n"),names.wechat.join("\n"),"",""]);
-    const {photos,num:_n,...rest}=r;json.push({num:r.num,...rest,photos:[...names.carte.map(f=>({kind:"carte",file:f})),...names.stand.map(f=>({kind:"stand",file:f})),...names.wechat.map(f=>({kind:"wechat",file:f}))]})}
+    const {photos,num:_n,thumb:_t,...rest}=r;json.push({num:r.num,...rest,photos:[...names.carte.map(f=>({kind:"carte",file:f})),...names.stand.map(f=>({kind:"stand",file:f})),...names.wechat.map(f=>({kind:"wechat",file:f}))]})}
   const xlsx=await makeXlsx(COLS.map(c=>c[0]),rows,COLS.map(c=>c[1]));
   const vis=[...visites.values()].sort(byParcours(null));
   const numOf=id=>(all.find(r=>r.id===id)||{}).num||"";
@@ -481,7 +516,7 @@ const GEO={"SNIEC":[[31.20674,121.56037],[31.20735,121.56224],[31.20984,121.5671
 const HALLS=Object.keys(GEO).filter(k=>/^[EWN]\d$/.test(k)).sort();
 const SITES={SNIEC:{nom:"SNIEC",long:"SNIEC · Pudong",q:"上海新国际博览中心"},SWEECC:{nom:"World Expo",long:"World Expo (SWEECC)",q:"上海世博展览馆"}};
 const PRIOS=["Indispensable","Si possible"];
-let visites=new Map(),planSite="SNIEC",pos=null,gpsWatch=null,vFilt="todo",selHall="",vform=null;
+let visites=new Map(),planSite="SNIEC",pos=null,gpsWatch=null,vFilt="todo",selHall="",vform=null,autoSite=true,drawn=null;
 
 // Stands du catalogue : « E3.512 », « N6.918 » (SNIEC), « H1.178 » (World Expo), « Outdoor D.41,D.42 » (extérieur SNIEC).
 const hallKey=v=>{const h=String(v.hall||"").toUpperCase().trim();if(h)return h;const s=String(v.stand||"").toUpperCase();
@@ -540,8 +575,8 @@ function renderRdv(){
     b.onclick=()=>openVisite(v);L.append(b)}}
 
 function renderPlan(){
-  if(pos){const dS=dist([pos.lat,pos.lon],centre("SNIEC")),dW=dist([pos.lat,pos.lon],centre("SWEECC"));
-    if(Math.min(dS,dW)<1500)planSite=dS<dW?"SNIEC":"SWEECC"}
+  if(pos&&autoSite){const dS=dist([pos.lat,pos.lon],centre("SNIEC")),dW=dist([pos.lat,pos.lon],centre("SWEECC"));
+    if(Math.min(dS,dW)<1500)planSite=dS<dW?"SNIEC":"SWEECC";autoSite=false}
   const seg=$("#siteSeg");seg.innerHTML="";
   for(const s of ["SNIEC","SWEECC"]){const b=document.createElement("button");b.className="chip";b.textContent=SITES[s].long;b.setAttribute("aria-pressed",planSite===s);
     b.onclick=()=>{planSite=s;selHall="";renderVoir()};seg.append(b)}
@@ -593,10 +628,16 @@ function startGps(){
   if(gpsWatch!==null){stopGps();return}
   if(!navigator.geolocation)return toast("Localisation indisponible sur ce téléphone");
   $("#locBtn").textContent="Recherche du GPS…";
-  gpsWatch=navigator.geolocation.watchPosition(p=>{pos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};$("#locBtn").textContent="Arrêter la localisation";renderPlan();renderVList()},
+  gpsWatch=navigator.geolocation.watchPosition(p=>{pos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};
+      // Le GPS envoie une position par seconde : on ne redessine que si elle a vraiment changé, sinon les boutons bougent sous le doigt.
+      const now=Date.now();if(drawn&&now-drawn.t<3000)return;
+      if(drawn&&now-drawn.t<20000&&dist([drawn.lat,drawn.lon],[pos.lat,pos.lon])<8&&Math.abs(drawn.acc-pos.acc)<15)return;
+      drawn={...pos,t:now};$("#locBtn").textContent="Arrêter la localisation";renderPlan();renderVList()},
     e=>{stopGps();toast(e.code===1?"Localisation refusée : Réglages › Confidentialité › Service de localisation":"Position introuvable pour l'instant")},
     {enableHighAccuracy:true,maximumAge:5000,timeout:30000})}
-function stopGps(){if(gpsWatch!==null){navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null}$("#locBtn").textContent="Me localiser"}
+function stopGps(){if(gpsWatch!==null){navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null}drawn=null;autoSite=true;$("#locBtn").textContent="Me localiser"}
+document.addEventListener("visibilitychange",()=>{if(document.hidden){stopGps();if(draftT)saveDraft()}});
+addEventListener("pagehide",()=>{if(draftT)saveDraft()});
 $("#locBtn").onclick=startGps;
 
 function renderVList(){
@@ -620,7 +661,7 @@ function renderVList(){
     r.innerHTML=`<button class="tick" aria-label="${v.vu?"Marquer à voir":"Marquer vu"}">${v.vu?"✓":""}</button>
       <button class="vbody"><span class="vn">${esc(v.societe)}</span><span class="vo">${esc(v.objet||v.marques||"—")}</span></button>
       <div class="vr">${v.rdv?`<span class="pill rdvp">${esc(hm(rdvDate(v)))}</span>`:v.priorite==="Indispensable"?`<span class="pill must">Indispensable</span>`:""}<span>${esc(v.stand||"")}</span></div>`;
-    r.querySelector(".tick").onclick=async()=>{await putVisite({...v,vu:!v.vu,edited:true});renderVoir()};
+    r.querySelector(".tick").onclick=async()=>{await putVisite({...v,vu:!v.vu});renderVoir()};
     r.querySelector(".vbody").onclick=()=>openVisite(v);box.append(r)}}
 
 function segChips(el,list,cur,set){el.innerHTML="";for(const v of list){const b=document.createElement("button");b.type="button";b.className="chip";
@@ -640,16 +681,18 @@ async function saveVisite(){
   if(!f.societe){toast("Indiquez au moins la société");return null}
   const old=vform.id&&visites.get(vform.id),id=vform.id||"v"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
   const v={...(old||{vu:false,createdAt:new Date().toISOString()}),...f,id,site:vform.site,priorite:vform.prio,edited:true};
-  return await putVisite(v)?visites.get(id):null}
+  vform.id=id;return await putVisite(v)?visites.get(id):null}
 $("#visSave").onclick=async()=>{if(await saveVisite()){renderVoir();show("voir");toast("Exposant enregistré")}};
 $("#visCancel").onclick=()=>{renderVoir();show("voir")};
 $("#visMeet").onclick=async()=>{const v=await saveVisite();if(!v)return;
   if(v.ficheId&&fiches.has(v.ficheId))return openRecord(records().find(r=>r.id===v.ficheId));
+  if(form.visiteId===v.id&&dirty())return show("new");
+  if(busyForm())return;
   resetForm();form.visiteId=v.id;$("#f_societe").value=v.societe;$("#f_marques").value=v.marques||"";$("#f_stand").value=v.stand||"";$("#f_hall").value=hallKey(v)||"";
-  $("#formTitle").textContent=`Rencontre : ${v.societe}`;$("#cancelEdit").hidden=false;show("new")};
+  $("#formTitle").textContent=`Rencontre : ${v.societe}`;form.base=formState();updateCancel();show("new")};
 $("#visDel").onclick=()=>{$("#visDelOk").hidden=false};
 $("#visDelOk").onclick=async()=>{const id=vform.id;try{await idb("readwrite",s=>s.delete(id),"visites")}catch(e){return toast("Suppression impossible")}
-  visites.delete(id);if(id.startsWith("rdv-")||!id.startsWith("v")){let g={};try{g=JSON.parse(ls.get("seedGone")||"{}")}catch(e){}g[id]=1;ls.set("seedGone",JSON.stringify(g))}
+  visites.delete(id);{let g={};try{g=JSON.parse(ls.get("seedGone")||"{}")}catch(e){}g[id]=1;ls.set("seedGone",JSON.stringify(g))}
   renderVoir();show("voir");toast("Retiré de la liste")};
 $("#addVisite").onclick=()=>openVisite(null);
 setInterval(()=>{if(!$("#vVoir").hidden){renderRdv();renderPlan()}},60000);
@@ -666,7 +709,7 @@ async function showStorage(){try{const e=await navigator.storage.estimate();$("#
 /* ---------- démarrage ---------- */
 resetForm();render();renderVoir();
 const startTab=ls.get("tab")||"voir";if(startTab==="list")showStorage();show(startTab);
-idb("readonly",s=>s.getAll()).then(all=>{for(const r of all||[])fiches.set(r.id,r);render()}).catch(()=>toast("Stockage indisponible : ouvrez l'appli depuis l'écran d'accueil"));
+idb("readonly",s=>s.getAll()).then(all=>{let d=null;for(const r of all||[]){if(r.id===DRAFT)d=r;else fiches.set(r.id,r)}render();if(d)restoreDraft(d)}).catch(()=>toast("Stockage indisponible : ouvrez l'appli depuis l'écran d'accueil"));
 loadVisites().then(renderVoir);
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
