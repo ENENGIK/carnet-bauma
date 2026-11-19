@@ -231,6 +231,11 @@ input[type=datetime-local],input[type=time]{width:100%;border:1px solid var(--li
 
     <div class="group"><div class="label">Intérêt pour ENGIK</div><div class="chips lvl" id="c_interet"></div></div>
     <label class="field"><span class="label">Notes</span><textarea id="f_notes" placeholder="Prix vus, délais, ce qu'on s'est dit…"></textarea></label>
+    <div class="group">
+      <div class="label">Types de machines (facultatif)</div>
+      <div class="chips" id="c_machines"></div>
+      <label class="field"><span>Précisions pour la lecture des photos</span><input type="text" id="f_engins" placeholder="Ex. : pelles 20-30 t, surtout les pièces d'usure" autocomplete="off"></label>
+    </div>
 
     <div class="group">
       <div class="label">Exposant</div>
@@ -250,7 +255,6 @@ input[type=datetime-local],input[type=time]{width:100%;border:1px solid var(--li
     </div>
 
     <div class="group"><div class="label">Activité</div><div class="chips" id="c_activites"></div></div>
-    <div class="group"><div class="label">Types de machines</div><div class="chips" id="c_machines"></div></div>
 
     <div class="group">
       <div class="label">Contact</div>
@@ -308,7 +312,7 @@ const ACTIVITES=["Fabricant (OEM)","Distributeur / concession","Pièces détach�
 const MACHINES=["Pelles hydrauliques","Mini-pelles","Chargeuses","Bulldozers","Niveleuses","Compacteurs","Tombereaux / dumpers","Engins miniers","Grues mobiles","Grues à tour","Nacelles","Chariots / télescopiques","Concasseurs / cribles","Forage","Centrales à béton","Pompes à béton","Finisseurs / routes","Camions / malaxeurs","Groupes électrogènes","Compresseurs","Éclairage de chantier","Autre"];
 const INTERETS=["Chaud","Tiède","Froid"];
 const SUITES=["Envoyer documentation","Demander un prix","Proposer une distribution","Recontacter","Visite usine","Rien"];
-const TEXT=["societe","societe_cn","hall","stand","marques","pays","ville","contact","fonction","email","tel","wechat","site","notes"];
+const TEXT=["societe","societe_cn","hall","stand","marques","pays","ville","contact","fonction","email","tel","wechat","site","notes","engins"];
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -480,14 +484,14 @@ async function makeXlsx(head,rows,widths){
     {name:"xl/styles.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="${ns}/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2CE1B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
     {name:"xl/worksheets/sheet1.xml",data:sheet}],"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
 const slug=s=>String(s||"exposant").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"exposant";
-const COLS=[["N°",5],["Date",11],["Heure",7],["Société",26],["Nom chinois",16],["Hall",6],["Stand",9],["Marques",24],["Activités",26],["Types de machines",30],["Contact",20],["Fonction",18],["Email",26],["Téléphone",18],["WeChat",14],["Site web",22],["Pays",10],["Ville",10],["Intérêt",8],["Suite à donner",24],["Notes",40],["Photos carte",34],["Photos stand",34],["Photos WeChat",34],["Traité le",11],["Par",10]];
+const COLS=[["N°",5],["Date",11],["Heure",7],["Société",26],["Nom chinois",16],["Hall",6],["Stand",9],["Marques",24],["Activités",26],["Types de machines",30],["Précisions engins",30],["Contact",20],["Fonction",18],["Email",26],["Téléphone",18],["WeChat",14],["Site web",22],["Pays",10],["Ville",10],["Intérêt",8],["Suite à donner",24],["Notes",40],["Photos carte",34],["Photos stand",34],["Photos WeChat",34],["Traité le",11],["Par",10]];
 async function buildExport(){
   const all=records(),files=[],json=[],rows=[];
   for(const r of all){const num=String(r.num).padStart(3,"0"),names={carte:[],stand:[],wechat:[]};
     for(const k of ["carte","stand","wechat"])r.photos.filter(p=>p.kind===k).forEach((p,i)=>{const n=`photos/${num}_${slug(r.societe)}_${k}_${i+1}.jpg`;names[k].push(n);files.push({name:n,data:p.blob})});
     const d=new Date(r.createdAt);
     rows.push([r.num,d.toLocaleDateString("fr-FR"),d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),r.societe,r.societe_cn,r.hall,r.stand,r.marques,
-      r.activites.join(", "),r.machines.join(", "),r.contact,r.fonction,r.email,r.tel,r.wechat,r.site,r.pays,r.ville,r.interet,r.suites.join(", "),r.notes,
+      r.activites.join(", "),r.machines.join(", "),r.engins||"",r.contact,r.fonction,r.email,r.tel,r.wechat,r.site,r.pays,r.ville,r.interet,r.suites.join(", "),r.notes,
       names.carte.join("\n"),names.stand.join("\n"),names.wechat.join("\n"),"",""]);
     const {photos,num:_n,thumb:_t,...rest}=r;json.push({num:r.num,...rest,photos:[...names.carte.map(f=>({kind:"carte",file:f})),...names.stand.map(f=>({kind:"stand",file:f})),...names.wechat.map(f=>({kind:"wechat",file:f}))]})}
   const xlsx=await makeXlsx(COLS.map(c=>c[0]),rows,COLS.map(c=>c[1]));
