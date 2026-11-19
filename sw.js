@@ -1,5 +1,5 @@
 // Tout l'appli est servie depuis le cache : aucune requête réseau une fois installée.
-const VERSION = "carnet-v5";
+const VERSION = "carnet-v6";
 const FILES = ["./", "./index.html", "./visites.json", "./manifest.webmanifest", "./icon-180.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
